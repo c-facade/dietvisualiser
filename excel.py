@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 Playing with pandas
 '''
@@ -9,7 +11,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def main(file, measurement, start, end):
-    command = "libreoffice --headless --convert-to xlsx" + file
+    command = "libreoffice --headless --convert-to xlsx " + file
+    print(command)
     os.system(command)
     
     # stupid hack
@@ -22,9 +25,13 @@ def main(file, measurement, start, end):
 
     else:
         df = df[df['Measurement'] == measurement]
-    
-    # TODO: check how to convert dates
-    if(start != -1):
+   
+   #TODO merge the files in an intelligent way
+   # so that there aren't as many errors
+   # with dates!
+    if(start != -1):    
+        print("start:", start)
+        print(type(start))
         df = df[df['Date'] >= start]
     if(end != -1):
         df = df[df['Date'] <= end]
@@ -47,12 +54,17 @@ else:
     e = -1
     while(i < lenght):
         if(sys.argv[i] == '-start'):
-            s = datetime.datetime.strptime(sys.argv[i+1], '%d/%m/%y').date()
+            start = sys.argv[i+1] + " 00:00"
+            s = datetime.datetime.strptime(start, '%d/%m/%Y').date()
+            s = datetime.datetime.combine(s, datetime.time())
+            print(s)
+            print(type(s))
             i=i+2
             continue
         if(sys.argv[i] == '-end'):
-            e = datetime.datetime.strptime(sys.argv[i+1], '%d/%m/%y').date()
+            end = sys.argv[i+1] + " 00:00"
+            e = datetime.datetime.strptime(end, '%d/%m/%y %I:%M').date()
             i=i+2
             continue
         i=i+1
-main(f, m, s, e);
+    main(f, m, s, e);
