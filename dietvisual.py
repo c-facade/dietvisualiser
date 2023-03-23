@@ -9,11 +9,13 @@ import datetime
 import os
 import sys
 import subprocess
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
-# import argparser
+from lmfit.models import LorentzianModel
 
-def main(file, measurement, start, end, g):
+
+def main(file, measurement, start, end, g, f):
     df = pd.read_excel(file, sheet_name='Measurements')
 
     if(measurement == 'Weight'):
@@ -23,63 +25,61 @@ def main(file, measurement, start, end, g):
     else:
         df = df[df['Measurement'] == measurement]
    
-    if(start != -1):    
+    if(start != ""): 
         df = df[df['Date'] >= start]
-    if(end != -1):
+    if(end != ""):
         df = df[df['Date'] <= end]
     
     if g:
-        df.to_excel('Data.xlsx', index=False)
+        print("Generating file Data.xlsx")
+        df.to_excel('Data.xlsx', index=False) 
+    if f:
+        i = 0
+        numberdate = []
+        for date in df['Date']:
+            numberdate.append(date.timestamp())
+            print(date, numberdate[i])
+            i=i+1
+        model = LorentzianModel()
+        params = model.guess(df['Date'], x=df['Value'])
+        result = model.fit(df['Date'], params, x=df['Value'])
+        print(result.fit_report())
+        result.plot_fit() 
+    
     graphtitle= measurement + " in time"
     df.plot(x='Date', y='Value', kind="scatter", c="Value", colormap="viridis", colorbar=False, title=graphtitle, ylabel=measurement)
     plt.show()
     return 0
 
 
-if len(sys.argv) < 3:
-    if (len(sys.argv) > 1 and sys.argv[1] == 'help'):
-        print("Mynetdiary visualizer")
-        print("Usage:\n\t", sys.argv[0], "input_file measurement_name [-start GG/MM/YY] [-end GG/MM/YY] [-g]")
-        print("Arguments:\n \tinput_file must be a .xlsx file, or a .xls file\n\t Files int the .xls format will be automatically converted.\n\tmeasurement_name must be the name of a measurement\n\t in the original file, or the expressions Weight or BMI\n\t-start indicates the start date\n\t-end indicates end date\n\t-g generate output file Data.xlsx\n\t (default false)")
-        sys.exit(0)
-    print("Usage:", sys.argv[0], "input_file measurement_name [-start GG/MM/YYYY] [-end GG/MM/YY] [-g]")
-    print("Example: ", sys.argv[0], "Mynetdiary.xlsx Weight -start 02/05/22 -end 02/07/22");
-    print("See", sys.argv[0], "help for more options")
-else:
-    f = sys.argv[1]
-    if not os.path.exists(f):
-        print("Couldn't find the file:", f)
-    if not f.endswith('.xlsx'):
-        if f.endswith('.xls'):
-            print("The extension .xls is not supported. Generating a new copy of your file in xlsx format.")
-            subprocess.check_call(['libreoffice', '--headless', '--convert-to', 'xlsx', f])
-            print("The file ", f + 'x has been generated.')
-            f = f + 'x'
-        else:
-            print("The input file must be an Excel .xlsx file.\nFiles in the .xls format will be automatically converted.")
-            sys.exit(1)
-    m = sys.argv[2]
-    if m.endswith('.xlsx'):
-        print("Please insert one input file only. You can merge .xls or .xlsx files with ./excel_merger.py file1 file2 [file3 ...]")
-    lenght = len(sys.argv)
-    i = 3
-    s = -1
-    e = -1
-    generate = False
-    while(i < lenght):
-        if(sys.argv[i] == '-start'):
-            s = sys.argv[i+1]
-            s = datetime.datetime.strptime(s, '%d/%m/%y').date()
-            s = datetime.datetime.combine(s, datetime.time())
-            i=i+2
-            continue
-        if(sys.argv[i] == '-end'):
-            e = sys.argv[i+1]
-            e = datetime.datetime.strptime(e, '%d/%m/%y').date()
-            e = datetime.datetime.combine(e, datetime.time())
-            i=i+2
-            continue
-        if(sys.argv[i] == '-g'):
-            generate = True
-        i=i+1
-    main(f, m, s, e, generate);
+parser = argparse.ArgumentParser(prog="dietvisual.py", description="Draws charts of data about weight, BMI, and other diet related measurements", usage='%(prog)s\n\tinput_file measurement_name\n\t[-start GG/MM/YY] [-end GG/MM/YY] [-g] [--help]')
+
+parser.add_argument("input_file", help="The file that contains measurements data.\nMust be .xlsx or .xls file.\nFiles in the .xls format will be automatically converted.")
+parser.add_argument("measurement_name", help="The name of the measurement you wish to visualise. Example: Weight, BMI, Daily Steps.")
+parser.add_argument("-start", help="Start date in [DD/MM/YY] (day, month, year) format.", default="")
+parser.add_argument("-end", help="End date in [DD/MM/YY] (day, month, year) format", default="")
+parser.add_argument("-g", action="store_true", help="Generate output file data.xlsx (default false)")
+parser.add_argument("-fitting", action="store_true", help="Generate a curve to describe and predict data in the graph");
+
+args = parser.parse_args()
+
+if not os.path.exists(args.input_file):
+    print("Couldn't find the file:", args.input_file)
+if not args.input_file.endswith('.xlsx'):
+    if args.input_file.endswith('.xls'):
+        print("The extension .xls is not supported. Generating a new copy of your file in xlsx format.")
+        subprocess.check_call(['libreoffice', '--headless', '--convert-to', 'xlsx', args.input_file])
+        print("The file ", args.input_file + 'x has been generated.')
+        args.input_file = args.input_file + 'x'
+    else:
+        print("The input file must be an Excel .xlsx file.\nFiles in the .xls format will be automatically converted.")
+        sys.exit(1)
+if args.measurement_name.endswith('.xlsx') or args.measurement_name.endswith('.xls'):
+    print("Please insert one input file only. You can merge .xls or .xlsx files with ./excel_merger.py file1 file2 [file3 ...]")
+if(args.start != ""):
+    args.start = datetime.datetime.strptime(args.start, '%d/%m/%y').date()
+    args.start = datetime.datetime.combine(args.start, datetime.time())
+if(args.end != ""):
+    args.end = datetime.datetime.strptime(args.end, '%d/%m/%y').date()
+    args.end = datetime.datetime.combine(args.end, datetime.time())
+main(args.input_file, args.measurement_name, args.start, args.end, args.g, args.fitting);
