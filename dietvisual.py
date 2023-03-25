@@ -12,10 +12,9 @@ import subprocess
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
-from lmfit.models import LorentzianModel
 
 
-def main(file, measurement, start, end, g, f):
+def main(file, measurement, start, end, g):
     df = pd.read_excel(file, sheet_name='Measurements')
 
     if(measurement == 'Weight'):
@@ -33,18 +32,6 @@ def main(file, measurement, start, end, g, f):
     if g:
         print("Generating file Data.xlsx")
         df.to_excel('Data.xlsx', index=False) 
-    if f:
-        i = 0
-        numberdate = []
-        for date in df['Date']:
-            numberdate.append(date.timestamp())
-            print(date, numberdate[i])
-            i=i+1
-        model = LorentzianModel()
-        params = model.guess(df['Date'], x=df['Value'])
-        result = model.fit(df['Date'], params, x=df['Value'])
-        print(result.fit_report())
-        result.plot_fit() 
     
     graphtitle= measurement + " in time"
     df.plot(x='Date', y='Value', kind="scatter", c="Value", colormap="viridis", colorbar=False, title=graphtitle, ylabel=measurement)
@@ -59,7 +46,6 @@ parser.add_argument("measurement_name", help="The name of the measurement you wi
 parser.add_argument("-start", help="Start date in [DD/MM/YY] (day, month, year) format.", default="")
 parser.add_argument("-end", help="End date in [DD/MM/YY] (day, month, year) format", default="")
 parser.add_argument("-g", action="store_true", help="Generate output file data.xlsx (default false)")
-parser.add_argument("-fitting", action="store_true", help="Generate a curve to describe and predict data in the graph");
 
 args = parser.parse_args()
 
@@ -82,4 +68,4 @@ if(args.start != ""):
 if(args.end != ""):
     args.end = datetime.datetime.strptime(args.end, '%d/%m/%y').date()
     args.end = datetime.datetime.combine(args.end, datetime.time())
-main(args.input_file, args.measurement_name, args.start, args.end, args.g, args.fitting);
+main(args.input_file, args.measurement_name, args.start, args.end, args.g);
